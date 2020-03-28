@@ -9,7 +9,7 @@ addons:
       - expect-dev  # provides unbuffer utility
       - python-lxml  # because pip installation is slow
 install:
-  - pip install -r requirements.txt --use-mirrors
+  - pip install -r requirements.txt
   - pip install coverage
   - pip install coveralls
 script:
