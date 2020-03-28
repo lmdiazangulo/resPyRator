@@ -1,4 +1,4 @@
-#### **Hitoria**
+#### **Historia**
 *Dado* ...
 *Cuando* ...
 *Entonces* ...
@@ -14,4 +14,4 @@ Fichero a fichero los cambios que hemos ido haciendo, siempre orientado al objet
 
 #### **Dependencias**
 Añadir aquí aquellas historias de las que dependa esta. Para que en un futuro cuando vayamos a mergearla comprobemos
-que las las otras ya se han añadido.
+que las otras ya se han añadido.
