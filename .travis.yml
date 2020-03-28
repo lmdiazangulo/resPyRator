@@ -1,0 +1,18 @@
+language: python
+python:
+  - "3.5"
+sudo: false
+cache: pip
+addons:
+  apt:
+    packages:
+      - expect-dev  # provides unbuffer utility
+      - python-lxml  # because pip installation is slow
+install:
+  - pip install -r requirements.txt
+  - pip install coverage
+  - pip install coveralls
+script:
+  - coverage run -m unittest discover -s . -p '*_unit_test.py'
+after_success:
+  - coveralls
