@@ -16,7 +16,7 @@ class TestDataFrame(unittest.TestCase):
         return os.path.join(os.path.dirname(__file__), 'samples', *args)
 
     def test_tx_frame(self):
-        self.assertEqual(RxFrame.sizeof(), 38)
+        self.assertEqual(RxFrame.sizeof(), 42)
 
     def test_fake_serial(self):
         fname = self.path('1_frame.data')
