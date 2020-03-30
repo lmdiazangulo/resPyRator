@@ -10,7 +10,7 @@ collector = ReespiratorCollector()
 
 REGISTRY.register(collector)
 
-load_dotenv("settings.env")
+load_dotenv(os.path.join(os.path.dirname(__file__), 'settings.env'))
 
 if os.environ.get("RESPIRATOR_PORT") is not None:
     masterPort = os.environ.get("RESPIRATOR_PORT")

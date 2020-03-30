@@ -72,7 +72,7 @@ def crc16(nData: bytearray):
         crc = (crc >> 8) ^ table[(crc ^ ch) & 0xFF]
     return crc
 
-def recv_packet_blocking(serial):
+def recv_packet_blocking(s):
     """Internal function to receive a Packet
     """
     packet = tx_frame()
