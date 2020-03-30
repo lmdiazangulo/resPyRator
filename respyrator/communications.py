@@ -4,9 +4,9 @@ from ctypes import *
 
 import binascii
 import time
+import copy
 
 class tx_frame(Structure):
-    _pack_ = 1
     _fields_ = [("Header", c_uint8),
                 ("Protocol_version", c_uint8 ),
                 ("UUID", c_uint8 * 3),
@@ -27,6 +27,53 @@ class tx_frame(Structure):
                 ("TempValueEnc3", c_uint8),
                 ("TempValueEnc4", c_uint8),
                 ("Answer", c_uint16),
+                ("Answer_to_frame_number", c_uint8),
+                ("Crc", c_uint16)]
+
+    def print(self, collector):
+        print("Readed Serialized: ")
+        print("Header:%d" % (self.Header))
+        print("Protocol_version:%d" % self.Protocol_version)
+        print("UUID:%d" % int.from_bytes(self.UUID, byteorder='big'))
+        print("TAG:%d" % int.from_bytes(self.TAG, byteorder='big'))
+        print("RPM_setting:%d" % self.RPM_setting)
+        print("RPM_measure:%d" % self.RPM_measure)
+        print("PEAK_pressure_setting:%d" % self.PEAK_pressure_setting)
+        print("PEAK_pressure_measure:%d" % self.PEAK_pressure_measure)
+        print("PEEP_pressure_setting:%d" % self.PEEP_pressure_setting)
+        print("PEEP_pressure_measure:%d" % self.PEEP_pressure_measure)
+        print("TriggerFlow_setting:%d" % self.TriggerFlow_setting)
+        print("Flow_measure:%d" % self.Flow_measure)
+        print("Ramp_setting:%d" % self.Ramp_setting)
+        print("ActiveAlarmCode:%d" % self.ActiveAlarmCode)
+        print("StatusBitField:%d" % self.StatusBitField)
+        print("TempValueEnc1:%d" % self.TempValueEnc1)
+        print("TempValueEnc2:%d" % self.TempValueEnc2)
+        print("TempValueEnc3:%d" % self.TempValueEnc3)
+        print("TempValueEnc4:%d" % self.TempValueEnc4)
+        print("Answer:%d" % self.Answer)
+        print("Answer_to_frame_number:%d" % self.Answer_to_frame_number)
+        print("Crc:%d" % self.Crc)
+        collector.setPacket(self)
+
+        
+    def recv_from(self, s, blocking = True):
+        while blocking and s.in_waiting == 0: #waits until we receive any byte
+            continue
+
+        raw = s.read(ctypes.sizeof(self)) #we already have readed the first byte
+        print("Readed raw: ")
+        print(raw)
+        # ctypes.memmove(ctypes.pointer(packet),raw,ctypes.sizeof(packet))
+        self._fields_ =  copy.deepcopy(raw)         
+
+class rx_frame(Structure):
+    _pack_ = 1
+    _fields_ = [("Header", c_uint8),
+                ("Protocol_version", c_uint8 ),
+                ("Frame_number", c_uint8 ),
+                ("Command", c_uint8),
+                ("Value", c_uint16),
                 ("Answer_to_frame_number", c_uint8),
                 ("Crc", c_uint16)]
 
@@ -72,18 +119,6 @@ def crc16(nData: bytearray):
         crc = (crc >> 8) ^ table[(crc ^ ch) & 0xFF]
     return crc
 
-def recv_packet_blocking(s):
-    """Internal function to receive a Packet
-    """
-    packet = tx_frame()
-    while s.in_waiting == 0: #waits until we receive any byte
-        continue
-
-    raw = s.read(ctypes.sizeof(packet)) #we already have readed the first byte
-    #print("Readed raw: ")
-    #print(raw)
-    ctypes.memmove(ctypes.pointer(packet),raw,ctypes.sizeof(packet))
-    return packet
 
 def struct_to_bytes(st):
     buffer = create_string_buffer(sizeof(st))
@@ -93,32 +128,6 @@ def struct_to_bytes(st):
 def send_packet(s,packet):
     data = struct_to_bytes(packet)
     s.write(data)
-
-def print_packet(packet):
-    print("Readed Serialized: ")
-    print("Header:%d" % (packet.Header))
-    print("Protocol_version:%d" % packet.Protocol_version)
-    print("UUID:%d" % int.from_bytes(packet.UUID, byteorder='big'))
-    print("TAG:%d" % int.from_bytes(packet.TAG, byteorder='big'))
-    print("RPM_setting:%d" % packet.RPM_setting)
-    print("RPM_measure:%d" % packet.RPM_measure)
-    print("PEAK_pressure_setting:%d" % packet.PEAK_pressure_setting)
-    print("PEAK_pressure_measure:%d" % packet.PEAK_pressure_measure)
-    print("PEEP_pressure_setting:%d" % packet.PEEP_pressure_setting)
-    print("PEEP_pressure_measure:%d" % packet.PEEP_pressure_measure)
-    print("TriggerFlow_setting:%d" % packet.TriggerFlow_setting)
-    print("Flow_measure:%d" % packet.Flow_measure)
-    print("Ramp_setting:%d" % packet.Ramp_setting)
-    print("ActiveAlarmCode:%d" % packet.ActiveAlarmCode)
-    print("StatusBitField:%d" % packet.StatusBitField)
-    print("TempValueEnc1:%d" % packet.TempValueEnc1)
-    print("TempValueEnc2:%d" % packet.TempValueEnc2)
-    print("TempValueEnc3:%d" % packet.TempValueEnc3)
-    print("TempValueEnc4:%d" % packet.TempValueEnc4)
-    print("Answer:%d" % packet.Answer)
-    print("Answer_to_frame_number:%d" % packet.Answer_to_frame_number)
-    print("Crc:%d" % packet.Crc)
-    collector.setPacket(packet)
 
 def check_crc(packet):
     received_crc = packet.Crc
