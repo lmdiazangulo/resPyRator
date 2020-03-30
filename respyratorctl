@@ -1,0 +1,196 @@
+#!/usr/bin/python3
+"""Crontroller resPyRator interface
+
+Usage:
+  respyrator help
+  respyrator version
+  respyrator dev-test
+  respyrator search
+  respyrator record SERIAL FILENAME
+  respyrator collector [start|stop|restart|status]
+
+Options:
+    -h, --help       Show help
+    -v, --version    Version
+"""
+from docopt import docopt
+from serial import Serial
+import unittest
+import respyrator
+import sys
+import os
+
+
+def help():
+    print(__doc__)
+
+
+def version():
+    print('Version %s' % respyrator.__version__)
+
+
+def dev_test():
+    loader = unittest.TestLoader()
+    tests = loader.discover('.')
+    testRunner = unittest.runner.TextTestRunner()
+    testRunner.run(tests)
+
+
+def search():
+    ports = respyrator.serial.serial_ports_get()
+    if not ports:
+        print('Not ports found, check if you are administrator or root')
+        return
+    devices = {}
+    for port in ports:
+        msg_ok = '%s \tOK \n' % port
+        msg_ko = '%s \tDEVICE UNKNOW\n' % port
+        msg_on = '%s \t...' % port
+        sys.stderr.write(msg_on)
+        sys.stderr.flush()
+        frame = respyrator.serial.serial_port_frame_get(port)
+        if frame and isinstance(frame, respyrator.data_frame.RxFrame):
+            sys.stderr.write('\b' * (len(msg_on) + 2))
+            sys.stderr.write(msg_ok)
+            sys.stderr.flush()
+            devices[port] = frame
+        else:
+            sys.stderr.write('\b' * (len(msg_on) + 2))
+            sys.stderr.write(msg_ko)
+            sys.stderr.flush()
+    print('Found %s devices' % len(devices))
+    for k, v in devices.items():
+        print('\t %s protocol version %s' % (k, v.protocol_version))
+
+
+def record(serial, filename):
+    serial = Serial(port=serial, baudrate=115200, timeout=0.2)
+    df = respyrator.data_frame.DataFrame(serial)
+    df.record_start()
+    print('Press Control-C for finish record')
+    try:
+        count = 1
+        txt = ''
+        while True:
+            df.read()
+            if txt:
+                sys.stderr.write('\b' * len(txt))
+            txt = '%d frame' % count
+            sys.stderr.write(txt)
+            sys.stderr.flush()
+            count += 1
+    except KeyboardInterrupt:
+        pass
+    finally:
+        df.record_stop(filename)
+        print('\nFile "%s" created' % os.path.abspath(filename))
+
+
+def collector(args):
+    if args.get('start'):
+        collector_start()
+    elif args.get('stop'):
+        collector_stop()
+    elif args.get('restart'):
+        collector_restart()
+    elif args.get('status'):
+        collector_status()
+
+
+def path(*args):
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), *args))
+
+
+def _collector_is_running():
+    def pid_exists(pid):
+        try:
+            os.kill(int(pid), 0)
+        except OSError:
+            return False
+        return True
+
+    pid_fname = path('pid')
+    if not os.path.exists(pid_fname):
+        pid = ''.join([s for s in open(pid_fname).read() if s.isdigit()])
+        if pid_exists(pid):
+            return True
+    return False
+
+
+def collector_start():
+    if _collector_is_running():
+        print('Collector already running')
+        return
+    cmd = ' '.join([
+        'start-stop-daemon',
+        '--start',
+        '--quiet',
+        '--pidfile', path('pid'),
+        '--chuid %s' % os.getuid(),
+        '--background',
+        '--make-pidfile',
+        '--exec', '/usr/bin/env', 'VERSION=%s' % respyrator.__version__,
+        '--',
+        '/usr/bin/python3 ',
+        path('respyrator', 'prometheus', 'collector.py'),
+    ])
+    os.popen(cmd)
+    if _collector_is_running():
+        print('Collector started')
+        return
+    print('I can\'t start Collector')
+
+
+def collector_stop():
+    if not _collector_is_running():
+        print('Collector not running')
+        return
+    cmd = ' '.join([
+        'start-stop-daemon',
+        '--stop',
+        '--quiet',
+        '--pidfile', path('pid'),
+        '--retry', '2',
+    ])
+    os.popen(cmd)
+    if not _collector_is_running():
+        print('Collector stoped')
+        return
+    print('I can\'t stop Collector')
+
+
+def collector_restart():
+    collector_stop()
+    collector_start()
+
+
+def collector_status():
+    def pid_exists(pid):
+        try:
+            os.kill(int(pid), 0)
+        except OSError:
+            return False
+        return True
+
+    pid_fname = path('pid')
+    if not os.path.exists(pid_fname):
+        pid = ''.join([s for s in open(pid_fname).read() if s.isdigit()])
+        if pid_exists(pid):
+            print('Collector running')
+    print('Collector NOT running')
+
+
+if __name__ == '__main__':
+    args = docopt(__doc__, version=respyrator.__version__)
+    if args.get('help'):
+        help()
+    elif args.get('version'):
+        version()
+    elif args.get('dev-test'):
+        dev_test()
+    elif args.get('search'):
+        search()
+    elif args.get('record'):
+        record(args['SERIAL'], args['FILENAME'])
+    elif args.get('collector'):
+        collector(args)

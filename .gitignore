@@ -25,3 +25,6 @@ pip-log.txt
 
 # Lock files
 *.~lock*
+
+# PID file
+pid

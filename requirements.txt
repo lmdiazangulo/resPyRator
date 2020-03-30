@@ -1,0 +1,2 @@
+docopt==0.6.2
+prometheus-client==0.7.1
