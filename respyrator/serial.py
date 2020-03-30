@@ -2,7 +2,10 @@
 # For copyright and license notices, see LICENSE file in root directory
 ##############################################################################
 import os
-import pty
+try:
+    import pty
+except ImportError:
+    pty = None
 import serial
 import time
 import sys
