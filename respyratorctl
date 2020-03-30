@@ -7,18 +7,22 @@ Usage:
   respyrator dev-test
   respyrator search
   respyrator record SERIAL FILENAME
-  respyrator collector [start|stop|restart|status]
+  respyrator collector (start|stop|restart|status) [--debug]
 
 Options:
-    -h, --help       Show help
-    -v, --version    Version
+    -h, help       Show help
+    -v, version    Version
+    -d, debug      Debug
 """
 from docopt import docopt
 from serial import Serial
-import unittest
-import respyrator
-import sys
 import os
+import respyrator
+import subprocess
+import sys
+import unittest
+
+DEBUG = False
 
 
 def help():
@@ -101,6 +105,15 @@ def path(*args):
     return os.path.abspath(os.path.join(os.path.dirname(__file__), *args))
 
 
+def popen(cmd):
+    if DEBUG:
+        print('[EXEC] >>> %s' % ' '.join(cmd))
+    process = subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
+    return process.returncode, stdout, stderr
+
+
 def _collector_is_running():
     def pid_exists(pid):
         try:
@@ -118,15 +131,18 @@ def _collector_is_running():
 
 
 def collector_start():
+    if os.getuid() != 0:
+        print('You must be root for access to ports')
+        return
     if _collector_is_running():
         print('Collector already running')
         return
-    cmd = ' '.join([
+    code, stdout, stderr = popen([
         'start-stop-daemon',
         '--start',
         '--quiet',
         '--pidfile', path('pid'),
-        '--chuid %s' % os.getuid(),
+        '--chuid', str(os.getuid()),
         '--background',
         '--make-pidfile',
         '--exec', '/usr/bin/env', 'VERSION=%s' % respyrator.__version__,
@@ -134,7 +150,6 @@ def collector_start():
         '/usr/bin/python3 ',
         path('respyrator', 'prometheus', 'collector.py'),
     ])
-    os.popen(cmd)
     if _collector_is_running():
         print('Collector started')
         return
@@ -145,14 +160,13 @@ def collector_stop():
     if not _collector_is_running():
         print('Collector not running')
         return
-    cmd = ' '.join([
+    code, stdout, stderr = popen([
         'start-stop-daemon',
         '--stop',
         '--quiet',
         '--pidfile', path('pid'),
         '--retry', '2',
     ])
-    os.popen(cmd)
     if not _collector_is_running():
         print('Collector stoped')
         return
@@ -182,6 +196,9 @@ def collector_status():
 
 if __name__ == '__main__':
     args = docopt(__doc__, version=respyrator.__version__)
+    DEBUG = args.get('--debug', False)
+    if DEBUG:
+        print('Debug mode on!')
     if args.get('help'):
         help()
     elif args.get('version'):

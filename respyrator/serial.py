@@ -56,6 +56,10 @@ def serial_discovery_port():
     return None
 
 
+def serial_get(port):
+    return serial.Serial(port=port, baudrate=115200, timeout=0.1)
+
+
 class FakeSerial:
     def __init__(self, file_name, sleep=0.2):
         self._waiting = True
